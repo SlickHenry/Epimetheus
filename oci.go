@@ -253,7 +253,7 @@ func main() {
 	}
 
 	if config.TestMode {
-		if err := runConnectionTests(config); err != nil {
+		if err := runConnectionTests(*config); err != nil {
 			log.Fatalf("❌ Connection tests failed: %v", err)
 		}
 		log.Println("✅ All connection tests passed")
@@ -524,7 +524,7 @@ func runConnectionTests(config Configuration) error {
 	log.Println("🔍 Testing configuration and connections...")
 
 	log.Print("  Testing OCI API authentication... ")
-	client, err := NewOCIClient(config)
+	client, err := NewOCIClient(&config)
 	if err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
@@ -533,7 +533,7 @@ func runConnectionTests(config Configuration) error {
 	log.Println("✅ SUCCESS")
 
 	log.Print("  Testing OCI API connectivity... ")
-	if err := testOCIAPI(config); err != nil {
+	if err := testOCIAPI(&config); err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
 	}
@@ -541,7 +541,7 @@ func runConnectionTests(config Configuration) error {
 
 	log.Print("  Testing Syslog connectivity... ")
 	writer, err := NewSyslogWriter(config.SyslogProtocol, 
-		fmt.Sprintf("%s:%s", config.SyslogServer, config.SyslogPort), config)
+		fmt.Sprintf("%s:%s", config.SyslogServer, config.SyslogPort), &config)
 	if err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
@@ -550,14 +550,14 @@ func runConnectionTests(config Configuration) error {
 	log.Println("✅ SUCCESS")
 
 	log.Print("  Testing configuration files... ")
-	if err := testConfigFiles(config); err != nil {
+	if err := testConfigFiles(&config); err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
 	}
 	log.Println("✅ SUCCESS")
 
 	log.Print("  Testing file permissions... ")
-	if err := testFilePermissions(config); err != nil {
+	if err := testFilePermissions(&config); err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
 	}
@@ -596,7 +596,7 @@ func NewOCIClient(config *Configuration) (*OCIClient, error) {
 	return &OCIClient{
 		httpClient: &http.Client{Timeout: time.Duration(config.ConnTimeout) * time.Second},
 		privateKey: privateKey,
-		config:     &config,
+		config:     config,
 	}, nil
 }
 
