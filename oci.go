@@ -365,7 +365,13 @@ func main() {
 	}
 }
 
+
+
 func loadConfig() *Configuration {
+	// Add config file flag
+	configFile := flag.String("config", getEnvOrDefault("CONFIG_FILE", ""), "Path to JSON configuration file")
+	
+	// Existing flags...
 	tenancyOCID := flag.String("tenancy-ocid", getEnvOrDefault("OCI_TENANCY_OCID", ""), "OCI Tenancy OCID")
 	userOCID := flag.String("user-ocid", getEnvOrDefault("OCI_USER_OCID", ""), "OCI User OCID")
 	keyFingerprint := flag.String("key-fingerprint", getEnvOrDefault("OCI_KEY_FINGERPRINT", ""), "OCI API Key Fingerprint")
@@ -402,6 +408,126 @@ func loadConfig() *Configuration {
 
 	flag.Parse()
 
+	// If config file is specified, load from JSON and merge with CLI/env overrides
+	if *configFile != "" {
+		config, err := loadConfigFromJSON(*configFile)
+		if err != nil {
+			log.Fatalf("Failed to load config file %s: %v", *configFile, err)
+		}
+		
+		// Override with CLI flags that were explicitly set (check against defaults)
+		if *tenancyOCID != getEnvOrDefault("OCI_TENANCY_OCID", "") {
+			config.TenancyOCID = *tenancyOCID
+		}
+		if *userOCID != getEnvOrDefault("OCI_USER_OCID", "") {
+			config.UserOCID = *userOCID
+		}
+		if *keyFingerprint != getEnvOrDefault("OCI_KEY_FINGERPRINT", "") {
+			config.KeyFingerprint = *keyFingerprint
+		}
+		if *privateKeyPath != getEnvOrDefault("OCI_PRIVATE_KEY_PATH", "") {
+			config.PrivateKeyPath = *privateKeyPath
+		}
+		if *region != getEnvOrDefault("OCI_REGION", "us-phoenix-1") {
+			config.Region = *region
+		}
+		if *apiBaseURL != getEnvOrDefault("OCI_API_BASE_URL", "") {
+			config.APIBaseURL = *apiBaseURL
+		}
+		if *apiVersion != getEnvOrDefault("OCI_API_VERSION", "20190901") {
+			config.APIVersion = *apiVersion
+		}
+		if *syslogProto != getEnvOrDefault("SYSLOG_PROTOCOL", "tcp") {
+			config.SyslogProtocol = *syslogProto
+		}
+		if *syslogServer != getEnvOrDefault("SYSLOG_SERVER", "localhost") {
+			config.SyslogServer = *syslogServer
+		}
+		if *syslogPort != getEnvOrDefault("SYSLOG_PORT", "514") {
+			config.SyslogPort = *syslogPort
+		}
+		if *logLevel != getEnvOrDefault("LOG_LEVEL", "info") {
+			config.LogLevel = *logLevel
+		}
+		if *logFile != getEnvOrDefault("LOG_FILE", "") {
+			config.LogFile = *logFile
+		}
+		if *fetchInterval != getEnvOrIntDefault("FETCH_INTERVAL", 300) {
+			config.FetchInterval = *fetchInterval
+		}
+		if *connTimeout != getEnvOrIntDefault("CONNECTION_TIMEOUT", 30) {
+			config.ConnTimeout = *connTimeout
+		}
+		if *maxMsgSize != getEnvOrIntDefault("MAX_MSG_SIZE", 8192) {
+			config.MaxMsgSize = *maxMsgSize
+		}
+		if *markerFile != getEnvOrDefault("MARKER_FILE", "oci_audit_marker.json") {
+			config.MarkerFile = *markerFile
+		}
+		if *fieldMapFile != getEnvOrDefault("FIELD_MAP_FILE", "oci_field_map.json") {
+			config.FieldMapFile = *fieldMapFile
+		}
+		if *eventMapFile != getEnvOrDefault("EVENT_MAP_FILE", "oci_event_map.json") {
+			config.EventMapFile = *eventMapFile
+		}
+		if *verbose != getEnvOrBoolDefault("VERBOSE", false) {
+			config.Verbose = *verbose
+		}
+		if *maxRetries != getEnvOrIntDefault("MAX_RETRIES", 3) {
+			config.MaxRetries = *maxRetries
+		}
+		if *retryDelay != getEnvOrIntDefault("RETRY_DELAY", 5) {
+			config.RetryDelay = *retryDelay
+		}
+		if *healthCheckPort != getEnvOrIntDefault("HEALTH_CHECK_PORT", 8080) {
+			config.HealthCheckPort = *healthCheckPort
+		}
+		// Test, validate, and version flags always override
+		config.TestMode = *testMode
+		config.ValidateMode = *validateMode
+		config.ShowVersion = *showVersion
+		
+		if *eventCacheSize != getEnvOrIntDefault("EVENT_CACHE_SIZE", 10000) {
+			config.EventCacheSize = *eventCacheSize
+		}
+		if *eventCacheWindow != getEnvOrIntDefault("EVENT_CACHE_WINDOW", 3600) {
+			config.EventCacheWindow = *eventCacheWindow
+		}
+		if *enableEventCache != getEnvOrBoolDefault("ENABLE_EVENT_CACHE", true) {
+			config.EnableEventCache = *enableEventCache
+		}
+		if *initialLookback != getEnvOrIntDefault("INITIAL_LOOKBACK_HOURS", 24) {
+			config.InitialLookbackHours = *initialLookback
+		}
+		if *pollOverlap != getEnvOrIntDefault("POLL_OVERLAP_MINUTES", 5) {
+			config.PollOverlapMinutes = *pollOverlap
+		}
+		if *maxEvents != getEnvOrIntDefault("MAX_EVENTS_PER_POLL", 1000) {
+			config.MaxEventsPerPoll = *maxEvents
+		}
+		if *compartmentMode != getEnvOrDefault("COMPARTMENT_MODE", "all") {
+			config.CompartmentMode = *compartmentMode
+		}
+		if *compartmentIDsStr != getEnvOrDefault("COMPARTMENT_IDS", "") {
+			var compartmentIDs []string
+			if *compartmentIDsStr != "" {
+				compartmentIDs = strings.Split(*compartmentIDsStr, ",")
+				for i, id := range compartmentIDs {
+					compartmentIDs[i] = strings.TrimSpace(id)
+				}
+			}
+			config.CompartmentIDs = compartmentIDs
+		}
+		
+		// Auto-generate API base URL if not provided
+		if config.APIBaseURL == "" {
+			config.APIBaseURL = fmt.Sprintf("https://audit.%s.oraclecloud.com", config.Region)
+		}
+		
+		return config
+	}
+
+	// Parse compartment IDs for non-JSON config
 	var compartmentIDs []string
 	if *compartmentIDsStr != "" {
 		compartmentIDs = strings.Split(*compartmentIDsStr, ",")
@@ -410,6 +536,7 @@ func loadConfig() *Configuration {
 		}
 	}
 
+	// Default behavior: use flags and environment variables
 	config := &Configuration{
 		TenancyOCID:      *tenancyOCID,
 		UserOCID:         *userOCID,
@@ -452,6 +579,67 @@ func loadConfig() *Configuration {
 	}
 
 	return config
+}
+
+func loadConfigFromJSON(filename string) (*Configuration, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+	
+	var config Configuration
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+	
+	log.Printf("📋 Loaded configuration from %s", filename)
+	return &config, nil
+}
+
+// Create a sample config file
+func createSampleConfig(filename string) error {
+	sampleConfig := &Configuration{
+		TenancyOCID:          "ocid1.tenancy.oc1..aaaaaaaa...",
+		UserOCID:             "ocid1.user.oc1..aaaaaaaa...",
+		KeyFingerprint:       "aa:bb:cc:dd:ee:ff:gg:hh:ii:jj:kk:ll:mm:nn:oo:pp",
+		PrivateKeyPath:       "/path/to/oci-private-key.pem",
+		Region:               "us-phoenix-1",
+		APIBaseURL:           "",  // Will be auto-generated
+		APIVersion:           "20190901",
+		SyslogProtocol:       "tcp",
+		SyslogServer:         "your-syslog-server.com",
+		SyslogPort:           "514",
+		LogLevel:             "info",
+		LogFile:              "",
+		FetchInterval:        300,
+		ConnTimeout:          30,
+		MaxMsgSize:           8192,
+		MarkerFile:           "oci_audit_marker.json",
+		FieldMapFile:         "oci_field_map.json",
+		EventMapFile:         "oci_event_map.json",
+		Verbose:              false,
+		MaxRetries:           3,
+		RetryDelay:           5,
+		HealthCheckPort:      8080,
+		TestMode:             false,
+		ValidateMode:         false,
+		ShowVersion:          false,
+		EventCacheSize:       10000,
+		EventCacheWindow:     3600,
+		EnableEventCache:     true,
+		InitialLookbackHours: 24,
+		PollOverlapMinutes:   5,
+		MaxEventsPerPoll:     1000,
+		CompartmentMode:      "all",
+		CompartmentIDs:       []string{},
+	}
+	
+	data, err := json.MarshalIndent(sampleConfig, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal sample config: %w", err)
+	}
+	
+	return ioutil.WriteFile(filename, data, 0644)
 }
 
 func validateConfig(config *Configuration) error {
