@@ -1,0 +1,82 @@
+{
+  "ordered_fields": [
+    "rt",
+    "cs1",
+    "cs1Label",
+    "cs2",
+    "cs2Label",
+    "suser",
+    "dvc",
+    "dvchost",
+    "src",
+    "deviceEventClassId",
+    "externalId",
+    "deviceExternalId",
+    "requestClientApplication",
+    "eventTypeName",
+    "compartmentId",
+    "compartmentName",
+    "resourceName",
+    "resourceId",
+    "principalName",
+    "principalId",
+    "ipAddress",
+    "userAgent",
+    "authType",
+    "tenantId"
+  ],
+  "field_mappings": {
+    "eventTime": "rt",
+    "eventType": "deviceEventClassId",
+    "eventId": "externalId",
+    "source": "dvc",
+    "compartmentId": "cs1",
+    "compartmentName": "cs1Label",
+    "resourceName": "dvchost",
+    "resourceId": "deviceExternalId",
+    "principalName": "suser",
+    "ipAddress": "src",
+    "userAgent": "requestClientApplication",
+    "eventTypeName": "cs2",
+    "principalId": "cs3",
+    "authType": "cs4",
+    "tenantId": "cs5"
+  },
+  "lookups": {},
+  "cache_invalidation_rules": {},
+  "event_filtering": {
+    "mode": "exclude",
+    "excluded_events": [
+      "com.oraclecloud.ComputeApi.GetInstance",
+      "com.oraclecloud.identityControlPlane.ListUsers"
+    ],
+    "included_events": [],
+    "rate_limiting": {
+      "com.oraclecloud.ComputeApi.GetInstance": {
+        "max_per_hour": 100,
+        "enabled": true
+      }
+    },
+    "priority_events": [
+      "com.oraclecloud.ComputeApi.LaunchInstance",
+      "com.oraclecloud.ComputeApi.TerminateInstance",
+      "com.oraclecloud.identityControlPlane.CreateUser",
+      "com.oraclecloud.identityControlPlane.UpdateUser",
+      "com.oraclecloud.identityControlPlane.DeleteUser"
+    ],
+    "user_filtering": {
+      "exclude_service_accounts": true,
+      "exclude_users": [],
+      "include_only_users": []
+    }
+  },
+  "statistics": {
+    "enable_detailed_logging": true,
+    "log_interval_events": 100,
+    "track_cache_metrics": true,
+    "track_performance_metrics": true
+  },
+  "cef_vendor": "Oracle",
+  "cef_product": "CloudInfrastructure",
+  "cef_version": "1.0"
+}
