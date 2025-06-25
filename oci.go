@@ -159,10 +159,6 @@ type OCICompartment struct {
 	TimeCreated    string `json:"timeCreated"`
 }
 
-type ListCompartmentsResponse struct {
-	Items []OCICompartment `json:"data"`
-}
-
 type SyslogWriter struct {
 	protocol       string
 	address        string
@@ -253,7 +249,7 @@ func main() {
 	}
 
 	if config.TestMode {
-		if err := runConnectionTests(*config); err != nil {
+		if err := runConnectionTests(config); err != nil {
 			log.Fatalf("❌ Connection tests failed: %v", err)
 		}
 		log.Println("✅ All connection tests passed")
@@ -708,11 +704,12 @@ func logServiceStartup(config *Configuration) {
 	log.Printf("📝 Event Map: %s", config.EventMapFile)
 }
 
-func runConnectionTests(config Configuration) error {
+func runConnectionTests(config *Configuration) error {
+	// Function now expects *Configuration pointer (consistent with other functions)
 	log.Println("🔍 Testing configuration and connections...")
 
 	log.Print("  Testing OCI API authentication... ")
-	client, err := NewOCIClient(&config)
+	client, err := NewOCIClient(config)  // NewOCIClient already expects *Configuration
 	if err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
@@ -721,7 +718,7 @@ func runConnectionTests(config Configuration) error {
 	log.Println("✅ SUCCESS")
 
 	log.Print("  Testing OCI API connectivity... ")
-	if err := testOCIAPI(&config); err != nil {
+	if err := testOCIAPI(config); err != nil {  // testOCIAPI expects *Configuration
 		log.Printf("❌ FAILED: %v", err)
 		return err
 	}
@@ -729,7 +726,7 @@ func runConnectionTests(config Configuration) error {
 
 	log.Print("  Testing Syslog connectivity... ")
 	writer, err := NewSyslogWriter(config.SyslogProtocol, 
-		fmt.Sprintf("%s:%s", config.SyslogServer, config.SyslogPort), &config)
+		fmt.Sprintf("%s:%s", config.SyslogServer, config.SyslogPort), config)  // NewSyslogWriter expects *Configuration
 	if err != nil {
 		log.Printf("❌ FAILED: %v", err)
 		return err
@@ -738,14 +735,14 @@ func runConnectionTests(config Configuration) error {
 	log.Println("✅ SUCCESS")
 
 	log.Print("  Testing configuration files... ")
-	if err := testConfigFiles(&config); err != nil {
+	if err := testConfigFiles(config); err != nil {  // testConfigFiles expects *Configuration
 		log.Printf("❌ FAILED: %v", err)
 		return err
 	}
 	log.Println("✅ SUCCESS")
 
 	log.Print("  Testing file permissions... ")
-	if err := testFilePermissions(&config); err != nil {
+	if err := testFilePermissions(config); err != nil {  // testFilePermissions expects *Configuration
 		log.Printf("❌ FAILED: %v", err)
 		return err
 	}
@@ -753,6 +750,7 @@ func runConnectionTests(config Configuration) error {
 
 	return nil
 }
+
 
 // OCI Client Implementation
 func NewOCIClient(config *Configuration) (*OCIClient, error) {
@@ -892,7 +890,7 @@ func loadOCICompartments(config *Configuration) error {
 }
 
 func loadSubCompartments(compartmentID string, config *Configuration) error {
-	apiURL := fmt.Sprintf("%s/%s/compartments", config.APIBaseURL, config.APIVersion)
+	apiURL := fmt.Sprintf("https://identity.%s.oraclecloud.com/20160918/compartments", config.Region)
 	u, err := url.Parse(apiURL)
 	if err != nil {
 		return err
@@ -925,15 +923,15 @@ func loadSubCompartments(compartmentID string, config *Configuration) error {
 		return fmt.Errorf("compartments request failed: %d - %s", resp.StatusCode, string(body))
 	}
 
-	var compartmentsResp ListCompartmentsResponse
-	if err := json.Unmarshal(body, &compartmentsResp); err != nil {
+	var compartmentsList []OCICompartment
+	if err := json.Unmarshal(body, &compartmentsList); err != nil {
 		return fmt.Errorf("failed to parse compartments response: %w", err)
 	}
-
-	compartments = append(compartments, compartmentsResp.Items...)
+	
+	compartments = append(compartments, compartmentsList...)
 
 	// Recursively load sub-compartments
-	for _, comp := range compartmentsResp.Items {
+	for _, comp := range compartmentsList {
 		if err := loadSubCompartments(comp.ID, config); err != nil {
 			log.Printf("⚠️  Warning: failed to load sub-compartments for %s: %v", comp.ID, err)
 		}
@@ -1006,8 +1004,8 @@ func filterExcludeCompartments(allCompartments []OCICompartment, excludeIDs []st
 
 func testOCIAPI(config *Configuration) error {
 	// Test with a simple compartment list request
-	apiURL := fmt.Sprintf("%s/%s/compartments?compartmentId=%s&limit=1", 
-		config.APIBaseURL, config.APIVersion, config.TenancyOCID)
+	apiURL := fmt.Sprintf("https://identity.%s.oraclecloud.com/20160918/compartments?compartmentId=%s&limit=1", 
+		config.Region, config.TenancyOCID)
 	
 	req, err := http.NewRequest("GET", apiURL, nil)
 	if err != nil {
@@ -1497,7 +1495,7 @@ func fetchCompartmentEvents(config *Configuration, compartmentID string, startTi
 }
 
 func fetchCompartmentEventsPage(config *Configuration, compartmentID string, startTime, endTime time.Time, pageToken string) ([]OCIAuditEvent, string, error) {
-	apiURL := fmt.Sprintf("%s/%s/auditEvents", config.APIBaseURL, config.APIVersion)
+	apiURL := fmt.Sprintf("https://audit.%s.oraclecloud.com/20190901/auditEvents", config.Region)
 	u, err := url.Parse(apiURL)
 	if err != nil {
 		return nil, "", err
