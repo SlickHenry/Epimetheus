@@ -214,7 +214,7 @@ I'll update this document when I can with:
 ## 🎖️ Contributors
 
 ### Core Team of 1 -- like a sad table on Valentines day
-- **[@SlickHenry]**: Author and maintainer
+- **[@SlickHenry](https://github.com/SlickHenry)**: Author and maintainer
 
 ---
 
