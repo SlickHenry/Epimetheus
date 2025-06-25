@@ -20,7 +20,7 @@ This application provides real-time audit event forwarding from Oracle Cloud Inf
 - **🧪 Built-in Testing** - Pre-flight validation of all connections and configurations
 
 ## Tracked Issues
-[View Known Issues](issues.md)
+[View Known Issues](https://github.com/SlickHenry/Epimetheus/blob/main/Issues.md)
 
 ## Installation & Usage
 
