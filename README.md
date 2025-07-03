@@ -711,6 +711,276 @@ Typical performance characteristics:
 - **Memory usage**: <100MB typical, scales with cache size and compartment count
 - **Startup time**: <10 seconds including compartment discovery and connection testing
 
+## Automated Installation
+
+### Quick Setup with Deployment Script
+
+For automated installation and configuration, use the provided deployment script:
+
+```bash
+# Download and run the deployment script
+curl -fsSL https://raw.githubusercontent.com/SlickHenry/Epimetheus/refs/heads/main/epimetheus_deploy_script.sh -o epimetheus_deploy_script.sh
+chmod +x epimetheus_deploy_script.sh
+sudo ./epimetheus_deploy_script.sh
+```
+
+The deployment script automatically:
+- ✅ **Installs Go** (if not present)
+- ✅ **Downloads and compiles** the latest Epimetheus source
+- ✅ **Creates service user** (`oci-user`) with proper security restrictions
+- ✅ **Sets up directories** and file permissions
+- ✅ **Installs systemd service** with security hardening
+- ✅ **Downloads configuration templates** from GitHub
+- ✅ **Configures log rotation**
+- ✅ **Enables service** for automatic startup
+
+### Post-Installation Configuration
+
+After running the deployment script:
+
+#### 1. Configure OCI Credentials
+Edit the environment configuration file:
+```bash
+sudo nano /etc/epimetheus/environment
+```
+
+**Required settings:**
+```bash
+# OCI API Credentials (REQUIRED)
+OCI_TENANCY_OCID=ocid1.tenancy.oc1..your_tenancy_ocid
+OCI_USER_OCID=ocid1.user.oc1..your_user_ocid
+OCI_KEY_FINGERPRINT=aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99
+OCI_PRIVATE_KEY_PATH=/etc/epimetheus/oci_api_key.pem
+OCI_REGION=us-phoenix-1
+
+# Syslog Configuration (REQUIRED)
+SYSLOG_SERVER=your-siem-server.com
+SYSLOG_PORT=514
+SYSLOG_PROTOCOL=tcp
+```
+
+#### 2. Install OCI Private Key
+Copy your OCI API private key to the configuration directory:
+```bash
+sudo cp /path/to/your/oci_api_key.pem /etc/epimetheus/
+sudo chown root:oci-user /etc/epimetheus/oci_api_key.pem
+sudo chmod 640 /etc/epimetheus/oci_api_key.pem
+```
+
+#### 3. Test Configuration
+Validate your configuration before starting:
+```bash
+# Test configuration validity
+sudo -u oci-user epimetheus --validate
+
+# Test all connections
+sudo -u oci-user epimetheus --test
+```
+
+#### 4. Start the Service
+```bash
+# Start the service
+sudo systemctl start epimetheus
+
+# Check status
+sudo systemctl status epimetheus
+
+# View logs
+sudo journalctl -u epimetheus -f
+```
+
+### Service Management
+
+#### Basic Commands
+```bash
+# Service control
+sudo systemctl start epimetheus     # Start service
+sudo systemctl stop epimetheus      # Stop service
+sudo systemctl restart epimetheus   # Restart service
+sudo systemctl status epimetheus    # Check status
+sudo systemctl reload epimetheus    # Reload configuration
+
+# Enable/disable automatic startup
+sudo systemctl enable epimetheus    # Auto-start on boot
+sudo systemctl disable epimetheus   # Disable auto-start
+```
+
+#### Monitoring & Health Checks
+```bash
+# View real-time logs
+tail -f /var/log/epimetheus.log
+sudo journalctl -u epimetheus -f
+
+# Health check endpoints (default port 8080)
+curl http://localhost:8080/health
+curl http://localhost:8080/metrics
+
+# Check service statistics
+sudo systemctl status epimetheus --no-pager -l
+```
+
+### Configuration Files
+
+The deployment script creates and manages these configuration files:
+
+| File | Purpose | Permissions |
+|------|---------|-------------|
+| `/etc/epimetheus/environment` | Main environment configuration | `640 root:oci-user` |
+| `/etc/epimetheus/oci-config.json` | OCI API configuration template | `640 root:oci-user` |
+| `/etc/epimetheus/oci-field-map.json` | CEF field mapping configuration | `640 root:oci-user` |
+| `/etc/epimetheus/oci-event-map.json` | Event type name mapping | `640 root:oci-user` |
+| `/etc/epimetheus/oci_audit_marker.json` | Event polling state tracking | `640 oci-user:oci-user` |
+| `/var/log/epimetheus.log` | Application logs | `640 oci-user:oci-user` |
+
+### Advanced Configuration
+
+#### Compartment Filtering
+Configure which OCI compartments to monitor:
+```bash
+# Edit environment file
+sudo nano /etc/epimetheus/environment
+
+# Monitor all compartments (default)
+COMPARTMENT_MODE=all
+
+# Monitor only tenancy root
+COMPARTMENT_MODE=tenancy_only
+
+# Monitor specific compartments
+COMPARTMENT_MODE=include
+COMPARTMENT_IDS=ocid1.compartment.oc1..aaa,ocid1.compartment.oc1..bbb
+
+# Exclude specific compartments
+COMPARTMENT_MODE=exclude
+COMPARTMENT_IDS=ocid1.compartment.oc1..test
+```
+
+#### Event Deduplication
+Configure intelligent event deduplication:
+```bash
+# Enable/disable event cache
+ENABLE_EVENT_CACHE=true
+EVENT_CACHE_SIZE=10000
+EVENT_CACHE_WINDOW=3600
+```
+
+#### Polling Configuration
+Adjust polling behavior:
+```bash
+# Polling interval (seconds)
+FETCH_INTERVAL=300
+
+# Time-based polling settings
+INITIAL_LOOKBACK_HOURS=24
+POLL_OVERLAP_MINUTES=5
+MAX_EVENTS_PER_POLL=1000
+```
+
+#### Custom Field Mappings
+Edit CEF field mappings and event filtering:
+```bash
+# Customize CEF field mappings
+sudo nano /etc/epimetheus/oci-field-map.json
+
+# Add custom event type names
+sudo nano /etc/epimetheus/oci-event-map.json
+```
+
+### Troubleshooting
+
+#### Check Service Status
+```bash
+# Detailed service status
+sudo systemctl status epimetheus --no-pager -l
+
+# Recent log entries
+sudo journalctl -u epimetheus --since "10 minutes ago"
+
+# Full service logs
+sudo journalctl -u epimetheus --no-pager
+```
+
+#### Common Issues
+
+**Authentication Errors:**
+```bash
+# Verify OCI credentials
+sudo -u oci-user epimetheus --validate
+
+# Check private key permissions
+ls -la /etc/epimetheus/oci_api_key.pem
+```
+
+**Network Connectivity:**
+```bash
+# Test connections
+sudo -u oci-user epimetheus --test
+
+# Check syslog connectivity
+telnet your-siem-server.com 514
+```
+
+**Configuration Issues:**
+```bash
+# Verify configuration syntax
+sudo -u oci-user epimetheus --validate
+
+# Check environment file
+sudo cat /etc/epimetheus/environment
+```
+
+#### Log Analysis
+```bash
+# Search for errors
+sudo journalctl -u epimetheus | grep -i error
+
+# Monitor real-time events
+tail -f /var/log/epimetheus.log | grep "📊"
+
+# Check health metrics
+curl -s http://localhost:8080/health | jq '.'
+```
+
+### Updating Epimetheus
+
+To update to the latest version:
+```bash
+# Stop the service
+sudo systemctl stop epimetheus
+
+# Re-run the deployment script (preserves configuration)
+sudo ./epimetheus_deploy_script.sh
+
+# Start the service
+sudo systemctl start epimetheus
+```
+
+The deployment script preserves existing configuration files and only updates the binary and service definition.
+
+### Uninstallation
+
+To completely remove Epimetheus:
+```bash
+# Stop and disable service
+sudo systemctl stop epimetheus
+sudo systemctl disable epimetheus
+
+# Remove service files
+sudo rm /etc/systemd/system/epimetheus.service
+sudo rm /usr/local/bin/epimetheus
+sudo rm /etc/logrotate.d/epimetheus
+
+# Remove configuration (optional)
+sudo rm -rf /etc/epimetheus
+
+# Remove user and logs (optional)
+sudo userdel oci-user
+sudo rm /var/log/epimetheus.log
+
+# Reload systemd
+sudo systemctl daemon-reload
+```
+
 ## License
 
 This project is provided as-is for educational and operational use. Ensure compliance with Oracle Cloud Infrastructure API terms of service and your organization's security policies.
