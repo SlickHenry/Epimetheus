@@ -719,9 +719,9 @@ For automated installation and configuration, use the provided deployment script
 
 ```bash
 # Download and run the deployment script
-curl -fsSL https://raw.githubusercontent.com/SlickHenry/Epimetheus/refs/heads/main/epimetheus_deploy_script.sh -o epimetheus_deploy_script.sh
-chmod +x epimetheus_deploy_script.sh
-sudo ./epimetheus_deploy_script.sh
+curl -fsSL https://raw.githubusercontent.com/SlickHenry/Epimetheus/refs/heads/main/epimetheus_deploy.sh -o epimetheus_deploy.sh
+chmod +x epimetheus_deploy.sh
+sudo ./epimetheus_deploy.sh
 ```
 
 The deployment script automatically:
