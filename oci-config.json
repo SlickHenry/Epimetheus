@@ -3,7 +3,7 @@
   "user_ocid": "ocid1.user.oc1..aaaaaaaaexample",
   "key_fingerprint": "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
   "private_key_path": "/path/to/your/oci_api_key.pem",
-  "region": "us-phoenix-1",
+  "region": "us-ashburn-1",
   "api_base_url": "",
   "api_version": "20190901",
   "syslog_protocol": "tcp",
@@ -15,11 +15,28 @@
   "conn_timeout": 30,
   "max_msg_size": 8192,
   "marker_file": "oci_audit_marker.json",
-  "field_map_file": "oci_field_map.json",
-  "event_map_file": "oci_event_map.json",
+  "field_map_file": "oci-field-map.json",
+  "event_map_file": "oci-event-map.json",
   "verbose": false,
   "max_retries": 3,
   "retry_delay": 5,
+  
+  "retry_strategy": {
+    "exponential_backoff": true,
+    "base_multiplier": 2,
+    "max_delay_seconds": 60,
+    "jitter_enabled": true,
+    
+    "retryable_status_codes": [429, 500, 502, 503, 504],
+    "non_retryable_status_codes": [400, 401, 403, 404],
+    
+    "rate_limit_handling": {
+      "status_code": 429,
+      "use_exponential_backoff": true,
+      "max_backoff_seconds": 120
+    }
+  },
+  
   "health_check_port": 8080,
   "test_mode": false,
   "validate_mode": false,
@@ -30,6 +47,57 @@
   "initial_lookback_hours": 24,
   "poll_overlap_minutes": 5,
   "max_events_per_poll": 1000,
-  "compartment_mode": "all",
-  "compartment_ids": []
+  "compartment_mode": "tenancy_only",
+  "compartment_ids": [],
+  "compartment_refresh_interval": 300,
+  "enable_compartment_refresh": true,
+
+  "api_services": [
+    {
+      "name": "audit",
+      "enabled": false,
+      "base_url_template": "https://audit.{region}.oraclecloud.com",
+      "api_version": "20190901",
+      "poll_interval_seconds": 300,
+      "endpoints": {
+        "events": "/auditEvents",
+        "compartments": "/compartments"
+      },
+      "marker_file": "oci-audit-marker.json"
+    },
+    {
+      "name": "cloudguard", 
+      "enabled": true,
+      "base_url_template": "https://cloudguard-cp-api.{region}.oci.oraclecloud.com",
+      "api_version": "20200131",
+      "poll_interval_seconds": 600,
+      "endpoints": {
+        "problems": "/problems",
+        "detectors": "/detectors", 
+        "targets": "/targets"
+      },
+      "marker_file": "oci-cloudguard-marker.json"
+    },
+    {
+      "name": "logging",
+      "enabled": true,
+      "base_url_template": "https://logging.{region}.oci.oraclecloud.com",
+      "api_version": "20200531",
+      "poll_interval_seconds": 300,
+      "endpoints": {
+        "searchLogs": "/logs/actions/searchLogs"
+      },
+      "marker_file": "oci-logging-marker.json"
+    }
+  ],
+
+  "_multi_region_example": {
+    "_comment": "To enable multi-region monitoring, add 'regions' array to any service above",
+    "_example": {
+      "name": "audit",
+      "enabled": true,
+      "regions": ["us-ashburn-1", "us-phoenix-1", "eu-frankfurt-1"],
+      "base_url_template": "https://audit.{region}.oraclecloud.com"
+    }
+  }
 }

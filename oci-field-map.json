@@ -2,9 +2,17 @@
   "ordered_fields": [
     "rt",
     "cs1",
-    "cs1Label",
+    "cs1Label", 
     "cs2",
     "cs2Label",
+    "cs3",
+    "cs3Label",
+    "cs4",
+    "cs4Label",
+    "cs5",
+    "cs5Label",
+    "cs6",
+    "cs6Label",
     "suser",
     "dvc",
     "dvchost",
@@ -13,34 +21,140 @@
     "externalId",
     "deviceExternalId",
     "requestClientApplication",
-    "eventTypeName",
-    "compartmentId",
-    "compartmentName",
-    "resourceName",
-    "resourceId",
-    "principalName",
-    "principalId",
-    "ipAddress",
-    "userAgent",
-    "authType",
-    "tenantId"
+    "act",
+    "request",
+    "outcome",
+    "end",
+    "msg",
+    "deviceCustomString1",
+    "deviceCustomString2",
+    "deviceCustomString3"
   ],
-  "field_mappings": {
-    "eventTime": "rt",
-    "eventType": "deviceEventClassId",
-    "eventId": "externalId",
-    "source": "dvc",
-    "compartmentId": "cs1",
-    "compartmentName": "cs1Label",
-    "resourceName": "dvchost",
-    "resourceId": "deviceExternalId",
-    "principalName": "suser",
-    "ipAddress": "src",
-    "userAgent": "requestClientApplication",
-    "eventTypeName": "cs2",
-    "principalId": "cs3",
-    "authType": "cs4",
-    "tenantId": "cs5"
+  "service_mappings": {
+    "audit": {
+      "field_mappings": {
+        "eventTime": "rt",
+        "eventType": "deviceEventClassId",
+        "eventId": "externalId",
+        "source": "dvc",
+        "compartmentId": "cs1",
+        "compartmentName": "cs1Label",
+        "resourceName": "dvchost",
+        "resourceId": "deviceExternalId",
+        "eventTypeName": "cs2",
+        "availabilityDomain": "cs2Label"
+      },
+      "nested_field_mappings": {
+        "identity.principalName": "suser",
+        "identity.ipAddress": "src",
+        "identity.userAgent": "requestClientApplication",
+        "identity.principalId": "cs3",
+        "identity.authType": "cs4",
+        "identity.tenantId": "cs5",
+        "identity.callerName": "cs6",
+        "identity.callerId": "cs6Label",
+        "identity.credentials": "cs3Label",
+        "identity.consoleSessionId": "cs4Label",
+        "request.action": "act",
+        "request.path": "request",
+        "request.id": "requestId",
+        "request.parameters": "requestContext",
+        "response.status": "outcome",
+        "response.responseTime": "end",
+        "response.message": "msg",
+        "response.headers.opc-request-id": "externalId",
+        "additionalDetails.imageId": "deviceCustomString1",
+        "additionalDetails.shape": "deviceCustomString2",
+        "additionalDetails.type": "deviceCustomString3"
+      }
+    },
+    "cloudguard": {
+      "_comment": "CloudGuard field mappings - covers Problems, Detectors, and Targets",
+      "field_mappings": {
+        "timeCreated": "rt",
+        "timeUpdated": "end",
+        "compartmentId": "cs2",
+        "description": "msg",
+        "id": "externalId",
+        "displayName": "deviceCustomString4",
+        "lifecycleState": "deviceCustomString5",
+        "labels": "deviceCustomString6",
+        
+        "_comment_problems": "CloudGuard Problem specific fields",
+        "problemType": "deviceEventClassId",
+        "riskLevel": "cs1",
+        "status": "cs1Label", 
+        "resourceName": "dvchost",
+        "resourceId": "deviceExternalId",
+        "targetId": "cs3",
+        "detectorId": "cs3Label",
+        
+        "_comment_detectors": "CloudGuard Detector specific fields",
+        "detectorType": "deviceEventClassId",
+        "serviceType": "cs4",
+        "isEnabled": "cs4Label",
+        "condition": "deviceCustomString1",
+        "detectorRulesCount": "cnt",
+        
+        "_comment_targets": "CloudGuard Target specific fields", 
+        "targetResourceType": "deviceEventClassId",
+        "targetResourceId": "cs5",
+        "recipeCount": "cs5Label",
+        "inheritedByCompartments": "deviceCustomString2",
+        "detectorRecipesCount": "cs6",
+        "responderRecipesCount": "cs6Label",
+        "lifecycleDetails": "deviceCustomString3"
+      },
+      "nested_field_mappings": {
+        "_comment_problem_details": "CloudGuard Problem detail mappings",
+        "details.affectedResourceId": "cfp1",
+        "details.affectedResourceName": "cfp1Label",
+        "details.riskScore": "cfp2",
+        "details.detectorRuleId": "cfp2Label",
+        "details.region": "cfp3",
+        "details.recommendation": "cfp3Label",
+        "details.severity": "cfp4",
+        "details.category": "cfp4Label"
+      }
+    },
+    "logging": {
+      "_comment": "VCN Flow Log field mappings - network traffic analysis",
+      "field_mappings": {
+        "time": "rt",
+        "id": "externalId",
+        "sourceAddr": "src",
+        "destAddr": "dst",
+        "sourcePort": "spt",
+        "destPort": "dpt",
+        "protocol": "proto",
+        "protocolName": "transportProtocol",
+        "packets": "cnt",
+        "bytes": "out",
+        "action": "act",
+        "flowState": "deviceCustomString1",
+        "direction": "deviceDirection",
+        
+        "_comment_network_identifiers": "VCN network resource identifiers",
+        "vnicId": "cs1",
+        "subnetId": "cs2", 
+        "vcnId": "cs3",
+        "compartmentId": "cs4",
+        "interfaceId": "cs5",
+        "tenancyId": "cs6",
+        
+        "_comment_flow_metadata": "Flow log metadata fields",
+        "windowStart": "start",
+        "windowEnd": "end",
+        "version": "deviceCustomString2",
+        "account": "deviceCustomString3",
+        "source": "dvc",
+        "type": "deviceCustomString4",
+        "subject": "deviceCustomString5"
+      },
+      "nested_field_mappings": {
+        "_comment": "VCN Flow Logs use flat structure - no nested mappings needed"
+      }
+    }
   },
   "lookups": {},
   "cache_invalidation_rules": {},
@@ -55,6 +169,10 @@
       "com.oraclecloud.ComputeApi.GetInstance": {
         "max_per_hour": 100,
         "enabled": true
+      },
+      "CONFIGURATION_DRIFT_DETECTED": {
+        "max_per_hour": 50,
+        "enabled": true
       }
     },
     "priority_events": [
@@ -62,7 +180,11 @@
       "com.oraclecloud.ComputeApi.TerminateInstance",
       "com.oraclecloud.identityControlPlane.CreateUser",
       "com.oraclecloud.identityControlPlane.UpdateUser",
-      "com.oraclecloud.identityControlPlane.DeleteUser"
+      "com.oraclecloud.identityControlPlane.DeleteUser",
+      "SUSPICIOUS_ACTIVITY_DETECTED",
+      "CONFIGURATION_DRIFT_DETECTED",
+      "PRIVILEGE_ESCALATION_DETECTED",
+      "DATA_EXFILTRATION_DETECTED"
     ],
     "user_filtering": {
       "exclude_service_accounts": true,
@@ -71,7 +193,7 @@
     }
   },
   "statistics": {
-    "enable_detailed_logging": true,
+    "enable_detailed_logging": false,
     "log_interval_events": 100,
     "track_cache_metrics": true,
     "track_performance_metrics": true

@@ -1,59 +1,458 @@
-# Epimetheus - Enhanced OCI Audit Event Forwarder
+# Epimetheus - Oracle Cloud Multi-Service Event Forwarder
 
-A standalone Go application that polls the Oracle Cloud Infrastructure (OCI) Audit API for events and forwards them to a syslog server in CEF (Common Event Format) with **intelligent deduplication**, **comprehensive statistics**, **time-based polling**, and **multi-compartment support** for SIEM ingestion and security monitoring.
+A production-ready Go application that monitors **multiple Oracle Cloud Infrastructure (OCI) services** including Audit API and CloudGuard, forwarding security events to SIEM platforms in CEF (Common Event Format) with **intelligent deduplication**, **real-time compartment discovery**, and **comprehensive monitoring**.
 
-## Overview
+## 🚀 Overview
 
-This application provides real-time audit event forwarding from Oracle Cloud Infrastructure to your SIEM or log analysis platform. It features intelligent event deduplication to prevent duplicate processing, comprehensive statistics tracking, time-based polling with configurable overlap, and converts all data to industry-standard CEF format with enhanced audit capabilities.
+Epimetheus provides unified event collection from Oracle Cloud Infrastructure services with enterprise-grade reliability, scalability, and operational excellence. Built for production environments requiring continuous security monitoring and compliance.
+
+### ⭐ Key Features
+
+- **🔗 Multi-Service Architecture** - Unified collection from Audit API, CloudGuard, and future OCI services
+- **🔄 Auto-Discovery** - Automatic compartment refresh detects new resources during runtime
+- **🧠 Intelligent Deduplication** - Prevents duplicate event processing across polling intervals and restarts
+- **📊 Production Monitoring** - Health endpoints, Prometheus metrics, and dynamic health assessment
+- **⚙️ JSON-First Configuration** - Simplified, maintainable configuration with service-specific settings
+- **🏢 Enterprise Compartment Management** - Thread-safe compartment access with filtering and error handling
+- **⏰ Resilient Polling** - Time-based polling with overlap, retry logic, and graceful failure handling
+- **🎯 Advanced Filtering** - Rate limiting, priority events, service account detection, and custom rules
+- **🛡️ Security Hardened** - Secure API authentication, permission validation, and systemd service integration
+- **📋 Industry Standard Output** - CEF format with service-specific field mappings and enrichment
+- **🧪 Built-in Validation** - Configuration validation, connection testing, and health verification
+
+## 📋 Supported OCI Services
+
+| Service | Status | Events | Description |
+|---------|--------|---------|-------------|
+| **Audit API** | ✅ Production | All OCI audit events | Comprehensive API activity monitoring |
+| **CloudGuard** | ✅ Production | Security problems/findings | Security posture and threat detection |
+| **Future Services** | 🔄 Extensible | Custom endpoints | Architecture ready for additional OCI services |
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    subgraph "Oracle Cloud Infrastructure"
+        A[OCI Audit API]
+        B[OCI CloudGuard API]
+        C[OCI Future Services]
+        D[Compartments]
+    end
+    
+    subgraph "Epimetheus Multi-Service Forwarder"
+        E[JSON Configuration]
+        F[Service Manager]
+        G[Compartment Manager]
+        H[Event Cache]
+        I[Field Mappings]
+        J[Health Monitor]
+    end
+    
+    subgraph "Output & Monitoring"
+        K[Syslog Server]
+        L[SIEM Platform]
+        M[Prometheus/Grafana]
+        N[Health Endpoints]
+    end
+    
+    A --> F
+    B --> F
+    C --> F
+    D --> G
+    E --> F
+    F --> H
+    H --> I
+    I --> K
+    K --> L
+    J --> N
+    J --> M
+    
+    style F fill:#e1f5fe
+    style G fill:#f3e5f5
+    style H fill:#e8f5e8
+```
+
+## 🚦 Event Processing Flow
+
+```mermaid
+flowchart TD
+    A[Start Polling Cycle] --> B{Services Enabled?}
+    B -->|Yes| C[Load Current Compartments]
+    B -->|No| Z[Wait Next Interval]
+    
+    C --> D[For Each Service]
+    D --> E[Fetch Events from API]
+    E --> F{API Success?}
+    F -->|No| G[Retry Logic]
+    F -->|Yes| H[Event Deduplication]
+    
+    G --> I{Max Retries?}
+    I -->|No| E
+    I -->|Yes| J[Log Error & Continue]
+    
+    H --> K{Duplicate?}
+    K -->|Yes| L[Cache Hit - Skip]
+    K -->|No| M[Apply Filtering]
+    
+    M --> N{Pass Filters?}
+    N -->|No| O[Filtered Count]
+    N -->|Yes| P[Enrich Event Data]
+    
+    P --> Q[Format as CEF]
+    Q --> R[Forward to Syslog]
+    R --> S{Syslog Success?}
+    S -->|No| T[Reconnect & Retry]
+    S -->|Yes| U[Mark as Processed]
+    
+    T --> V{Retry Success?}
+    V -->|No| W[Drop Event]
+    V -->|Yes| U
+    
+    U --> X[Update Statistics]
+    L --> X
+    O --> X
+    W --> X
+    J --> X
+    
+    X --> Y{More Services?}
+    Y -->|Yes| D
+    Y -->|No| Z
+    
+    Z --> AA[Save Markers]
+    AA --> AB[Update Health Status]
+    AB --> A
+    
+    style H fill:#e8f5e8
+    style K fill:#fff3e0
+    style R fill:#e3f2fd
+    style U fill:#e8f5e8
+```
+
+## Tracked Issues
+[View Known Issues](issues.md)
+
+## 🔧 Installation
+
+### Automated Deployment (Recommended)
+
+```bash
+# Download and run deployment script for Ubuntu 22.04
+wget https://raw.githubusercontent.com/SlickHenry/Epimetheus/main/epimetheus_deploy.sh
+chmod +x epimetheus_deploy.sh
+sudo ./epimetheus_deploy.sh
+```
+
+The deployment script will:
+- Install Go and compile the binary
+- Create service user with security hardening  
+- Set up systemd service
+- Configure log rotation
+- Create template configuration files
+- Set appropriate permissions
+
+### Manual Installation
+
+```bash
+# Clone repository
+git clone https://github.com/SlickHenry/Epimetheus.git
+cd Epimetheus
+
+# Build binary
+go build -o epimetheus oci.go
+
+# Install binary
+sudo mv epimetheus /usr/local/bin/
+sudo chmod +x /usr/local/bin/epimetheus
+```
+
+## ⚙️ Configuration
+
+### Primary Configuration (JSON)
+
+All service configuration is managed via JSON file (`oci-config.json`):
+
+```json
+{
+  "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaaexample",
+  "user_ocid": "ocid1.user.oc1..aaaaaaaaexample", 
+  "key_fingerprint": "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
+  "private_key_path": "/etc/epimetheus/oci_api_key.pem",
+  "region": "us-ashburn-1",
+  
+  "syslog_protocol": "tcp",
+  "syslog_server": "your-siem-server.com",
+  "syslog_port": "514",
+  
+  "health_check_port": 8080,
+  "verbose": false,
+  
+  "compartment_mode": "all",
+  "compartment_refresh_interval": 60,
+  "enable_compartment_refresh": true,
+  
+  "api_services": [
+    {
+      "name": "audit",
+      "enabled": true,
+      "base_url_template": "https://audit.{region}.oraclecloud.com",
+      "api_version": "20190901",
+      "poll_interval_seconds": 300,
+      "endpoints": {
+        "events": "/auditEvents",
+        "compartments": "/compartments"
+      },
+      "marker_file": "oci_audit_marker.json"
+    },
+    {
+      "name": "cloudguard",
+      "enabled": true,
+      "base_url_template": "https://cloudguard-cp-api.{region}.oci.oraclecloud.com",
+      "api_version": "20200131", 
+      "poll_interval_seconds": 600,
+      "endpoints": {
+        "problems": "/problems",
+        "detectors": "/detectors",
+        "targets": "/targets"
+      },
+      "marker_file": "oci_cloudguard_marker.json"
+    }
+  ]
+}
+```
+
+### Simplified CLI Interface
+
+```bash
+# Essential CLI flags only
+epimetheus --config /etc/epimetheus/oci-config.json
+epimetheus --config oci-config.json --test        # Test connections
+epimetheus --config oci-config.json --validate    # Validate config
+epimetheus --config oci-config.json --verbose     # Verbose output  
+epimetheus --version                               # Show version
+```
+
+## 🎯 Usage Examples
+
+### Basic Operation
+
+```bash
+# Start with JSON configuration
+sudo systemctl start epimetheus
+
+# Check status and health
+sudo systemctl status epimetheus
+curl http://localhost:8080/health
+curl http://localhost:8080/metrics
+```
+
+### Configuration Validation
+
+```bash
+# Validate configuration
+epimetheus --config oci-config.json --validate
+
+# Test all connections
+epimetheus --config oci-config.json --test
+
+# Check specific service configuration
+epimetheus --config oci-config.json --test --verbose
+```
+
+### Service Management
+
+```bash
+# Service lifecycle
+sudo systemctl start epimetheus
+sudo systemctl stop epimetheus  
+sudo systemctl restart epimetheus
+sudo systemctl enable epimetheus
+
+# View logs
+sudo journalctl -u epimetheus -f
+sudo journalctl -u epimetheus --since "1 hour ago"
+tail -f /var/log/epimetheus.log
+```
+
+## 📊 Monitoring & Health Checks
+
+### Health Endpoint
+
+The `/health` endpoint provides detailed system status:
+
+```bash
+curl http://localhost:8080/health | jq
+```
+
+```json
+{
+  "status": "healthy",
+  "uptime": "2h15m30s",
+  "compartments_monitored": 12,
+  "total_events": 15420,
+  "api_failure_rate": 0.02,
+  "health_issues": [],
+  "event_cache": {
+    "cache_hits": 1250,
+    "cache_size": 8934
+  }
+}
+```
+
+**Health Status Levels:**
+- `healthy` - All systems operational
+- `degraded` - Some issues but functional
+- `unhealthy` - Critical problems requiring attention
+
+### Prometheus Metrics
+
+The `/metrics` endpoint provides comprehensive operational metrics:
+
+```prometheus
+# Core metrics
+oci_audit_forwarder_total_events 15420
+oci_audit_forwarder_compartments_monitored 12
+oci_audit_forwarder_api_requests_failed 45
+oci_audit_forwarder_health_status 1.0
+
+# Cache effectiveness
+oci_audit_forwarder_event_cache_hits 8934
+oci_audit_forwarder_lookup_cache_hits 2341
+
+# Operational metrics
+oci_audit_forwarder_syslog_reconnects 2
+oci_audit_forwarder_compartment_errors 0
+```
+
+## 🏢 Compartment Management
+
+### Automatic Discovery
+
+Epimetheus automatically discovers new compartments during runtime:
+
+```
+🔄 Compartment refresh enabled: every 60 minutes
+🆕 Discovered 2 new compartments:
+  + development-env (ocid1.compartment.oc1..xxx) [ACTIVE]
+  + staging-env (ocid1.compartment.oc1..yyy) [ACTIVE]
+🔄 Compartment count changed: 5 → 7
+```
+
+### Configuration Options
+
+```json
+{
+  "compartment_mode": "all",                    // all, tenancy_only, include, exclude
+  "compartment_ids": ["ocid1.compartment..."], // for include/exclude modes
+  "compartment_refresh_interval": 60,          // minutes between refresh
+  "enable_compartment_refresh": true           // enable auto-discovery
+}
+```
+
+## 🌍 Multi-Region Support
+
+### Overview
+
+Epimetheus supports monitoring multiple OCI regions simultaneously with **per-service region configuration**. Each service can be configured to monitor different sets of regions, enabling flexible, enterprise-grade multi-region deployments.
+
+### Multi-Region Architecture
+
+```mermaid
+graph TB
+    subgraph "Region: us-ashburn-1"
+        A1[OCI Audit API]
+        B1[OCI CloudGuard API]
+        C1[Compartments]
+    end
+    
+    subgraph "Region: us-phoenix-1"
+        A2[OCI Audit API]
+        B2[OCI CloudGuard API]
+        C2[Compartments]
+    end
+    
+    subgraph "Region: eu-frankfurt-1"
+        A3[OCI Audit API]
+        C3[Compartments]
+    end
+    
+    subgraph "Epimetheus Multi-Region Manager"
+        D[Service Manager]
+        E[Region Compartment Manager]
+        F[Region-Specific Markers]
+        G[Event Cache]
+    end
+    
+    subgraph "Output"
+        H[Syslog/SIEM]
+    end
+    
+    A1 --> D
+    A2 --> D
+    A3 --> D
+    B1 --> D
+    B2 --> D
+    C1 --> E
+    C2 --> E
+    C3 --> E
+    D --> F
+    F --> G
+    G --> H
+    
+    style D fill:#e1f5fe
+    style E fill:#f3e5f5
+    style F fill:#fff3e0
+```
+
+### Configuration Example
+
+```json
+{
+  "region": "us-ashburn-1",
+  "api_services": [
+    {
+      "name": "audit",
+      "enabled": true,
+      "regions": ["us-ashburn-1", "us-phoenix-1", "eu-frankfurt-1"],
+      "base_url_template": "https://audit.{region}.oraclecloud.com",
+      "api_version": "20190901",
+      "poll_interval_seconds": 300,
+      "marker_file": "oci_audit_marker.json"
+    },
+    {
+      "name": "cloudguard", 
+      "enabled": true,
+      "regions": ["us-ashburn-1", "us-phoenix-1"],
+      "base_url_template": "https://cloudguard-cp-api.{region}.oci.oraclecloud.com",
+      "api_version": "20200131",
+      "poll_interval_seconds": 600,
+      "marker_file": "oci_cloudguard_marker.json"
+    }
+  ]
+}
+```
 
 ### Key Features
 
-- **🔄 Intelligent Event Deduplication** - Prevents duplicate event processing with configurable cache
-- **📊 Comprehensive Statistics** - Detailed performance metrics and operational visibility
-- **🏢 Multi-Compartment Support** - Monitor all compartments or target specific ones
-- **⏰ Time-Based Polling** - Efficient time window polling with configurable overlap
-- **🎯 Advanced Event Filtering** - Rate limiting, priority events, and user filtering
-- **🔐 OCI API Authentication** - Secure API key-based authentication with request signing
-- **📈 Real-time Monitoring** - Health endpoints and Prometheus-compatible metrics
-- **🛡️ Production Ready** - Comprehensive error handling, retry logic, and graceful degradation
-- **📋 CEF Format** - Industry-standard Common Event Format output with enrichment
-- **🧪 Built-in Testing** - Pre-flight validation of all connections and configurations
+- **Per-Service Region Lists**: Each service specifies which regions to monitor
+- **Region-Specific Compartments**: Automatic compartment discovery per region
+- **Region-Specific Markers**: Independent state tracking per region/service
+- **Unified Event Stream**: All regions feed into single event processing pipeline
+- **Backward Compatible**: Single-region configurations continue to work
 
-## Tracked Issues
-[View Known Issues](https://github.com/SlickHenry/Epimetheus/blob/main/Issues.md)
+### Multi-Region Marker Files
 
-## Installation & Usage
+Marker files are automatically made region-specific:
+- `oci-audit-us-ashburn-1-marker.json`
+- `oci-audit-us-phoenix-1-marker.json`
+- `oci-cloudguard-us-ashburn-1-marker.json`
 
-### Prerequisites
+### Operational Benefits
 
-- Go 1.18 or later
-- OCI API credentials (Tenancy OCID, User OCID, API Key, Private Key)
-- Network access to syslog server
-- Appropriate OCI API permissions (`AUDIT_EVENTS_READ`)
-
-### Building
-
-```bash
-go build -o oci-audit-forwarder oci.go
-```
-
-### Quick Start
-
-```bash
-# Test configuration and connections
-./oci-audit-forwarder --test --tenancy-ocid "ocid1.tenancy..." --user-ocid "ocid1.user..." \
-  --key-fingerprint "aa:bb:cc..." --private-key-path "/path/to/key.pem"
-
-# Run with minimum required parameters
-./oci-audit-forwarder --tenancy-ocid "ocid1.tenancy..." --user-ocid "ocid1.user..." \
-  --key-fingerprint "aa:bb:cc..." --private-key-path "/path/to/key.pem" \
-  --syslog-server "10.1.1.100"
-
-# Validate configuration only
-./oci-audit-forwarder --validate --tenancy-ocid "ocid1.tenancy..."
-
-# Show version and capabilities
-./oci-audit-forwarder --version
+- **Comprehensive Coverage**: Monitor your entire global OCI footprint
+- **Regional Compliance**: Meet data residency requirements
+- **Fault Isolation**: Region outages don't affect other regions
+- **Independent Polling**: Different intervals per region if needed
+- **Unified Management**: Single configuration, single binary
 ```
 
 ### Advanced Usage
@@ -101,7 +500,7 @@ go build -o oci-audit-forwarder oci.go
 | `--retry-delay SECONDS` | Retry delay | `5` |
 | `--log-level LEVEL` | Log level: debug/info/warn/error | `info` |
 | `--log-file FILE` | Log file path | stdout |
-| `--field-map FILE` | Field mapping configuration file | `oci_field_map.json` |
+| `--field-map FILE` | Field mapping configuration file | `oci-field-map.json` |
 | `--event-map FILE` | Event type mapping file | `oci_event_map.json` |
 | `--marker-file FILE` | Event marker file for state tracking | `oci_audit_marker.json` |
 | `--health-port PORT` | Health check HTTP server port (0 to disable) | `8080` |
@@ -118,7 +517,7 @@ go build -o oci-audit-forwarder oci.go
 
 ## Configuration
 
-### Enhanced Field Mapping (oci_field_map.json)
+### Enhanced Field Mapping (oci-field-map.json)
 
 ```json
 {
@@ -476,9 +875,9 @@ The forwarder integrates with OCI Audit API:
 ### Enhanced Error Handling & Resilience
 
 - **API signing**: Secure request signing with RSA keys
-- **Retry logic**: Exponential backoff for transient errors with configurable limits  
+- **Retry logic**: JSON-configurable exponential backoff for transient errors (Oracle APIs don't provide Retry-After headers)
 - **Connection pooling**: Efficient connection reuse for API calls
-- **Rate limit handling**: Intelligent backoff when API limits are hit
+- **Rate limit handling**: Configurable exponential backoff with jitter when Oracle APIs return 429 errors
 - **Graceful degradation**: Continues processing even if individual compartments fail
 - **Comprehensive logging**: Detailed error reporting and recovery tracking
 
@@ -501,9 +900,9 @@ graph TB
     
     subgraph "Configuration Files"
         L["CLI Args / Env Vars"] --> B
-        M["oci_field_map.json"] --> B
-        N["oci_event_map.json"] --> B
-        O["oci_audit_marker.json"] <--> C
+        M["oci-field-map.json"] --> B
+        N["oci-event-map.json"] --> B
+        O["oci-audit-marker.json"] <--> C
     end
     
     subgraph "OCI API Services"
@@ -639,9 +1038,9 @@ The application provides comprehensive logging with visual indicators:
 🌍 Region: us-phoenix-1
 📡 Syslog: 10.1.1.100:514 (tcp)
 ⏱️  Interval: 300s
-📁 Marker: oci_audit_marker.json
-🗺️  Field Map: oci_field_map.json  
-📝 Event Map: oci_event_map.json
+📁 Marker: oci-audit-marker.json
+🗺️  Field Map: oci-field-map.json  
+📝 Event Map: oci-event-map.json
 🏥 Health check server started on port 8080
 🧠 Event deduplication cache initialized (size: 10000, window: 1h0m0s)
 💾 Cache initialized
@@ -710,276 +1109,6 @@ Typical performance characteristics:
 - **Processing speed**: 1000+ events per second (network dependent)
 - **Memory usage**: <100MB typical, scales with cache size and compartment count
 - **Startup time**: <10 seconds including compartment discovery and connection testing
-
-## Automated Installation
-
-### Quick Setup with Deployment Script
-
-For automated installation and configuration, use the provided deployment script:
-
-```bash
-# Download and run the deployment script
-curl -fsSL https://raw.githubusercontent.com/SlickHenry/Epimetheus/refs/heads/main/epimetheus_deploy.sh -o epimetheus_deploy.sh
-chmod +x epimetheus_deploy.sh
-sudo ./epimetheus_deploy.sh
-```
-
-The deployment script automatically:
-- ✅ **Installs Go** (if not present)
-- ✅ **Downloads and compiles** the latest Epimetheus source
-- ✅ **Creates service user** (`oci-user`) with proper security restrictions
-- ✅ **Sets up directories** and file permissions
-- ✅ **Installs systemd service** with security hardening
-- ✅ **Downloads configuration templates** from GitHub
-- ✅ **Configures log rotation**
-- ✅ **Enables service** for automatic startup
-
-### Post-Installation Configuration
-
-After running the deployment script:
-
-#### 1. Configure OCI Credentials
-Edit the environment configuration file:
-```bash
-sudo nano /etc/epimetheus/environment
-```
-
-**Required settings:**
-```bash
-# OCI API Credentials (REQUIRED)
-OCI_TENANCY_OCID=ocid1.tenancy.oc1..your_tenancy_ocid
-OCI_USER_OCID=ocid1.user.oc1..your_user_ocid
-OCI_KEY_FINGERPRINT=aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99
-OCI_PRIVATE_KEY_PATH=/etc/epimetheus/oci_api_key.pem
-OCI_REGION=us-phoenix-1
-
-# Syslog Configuration (REQUIRED)
-SYSLOG_SERVER=your-siem-server.com
-SYSLOG_PORT=514
-SYSLOG_PROTOCOL=tcp
-```
-
-#### 2. Install OCI Private Key
-Copy your OCI API private key to the configuration directory:
-```bash
-sudo cp /path/to/your/oci_api_key.pem /etc/epimetheus/
-sudo chown root:oci-user /etc/epimetheus/oci_api_key.pem
-sudo chmod 640 /etc/epimetheus/oci_api_key.pem
-```
-
-#### 3. Test Configuration
-Validate your configuration before starting:
-```bash
-# Test configuration validity
-sudo -u oci-user epimetheus --validate
-
-# Test all connections
-sudo -u oci-user epimetheus --test
-```
-
-#### 4. Start the Service
-```bash
-# Start the service
-sudo systemctl start epimetheus
-
-# Check status
-sudo systemctl status epimetheus
-
-# View logs
-sudo journalctl -u epimetheus -f
-```
-
-### Service Management
-
-#### Basic Commands
-```bash
-# Service control
-sudo systemctl start epimetheus     # Start service
-sudo systemctl stop epimetheus      # Stop service
-sudo systemctl restart epimetheus   # Restart service
-sudo systemctl status epimetheus    # Check status
-sudo systemctl reload epimetheus    # Reload configuration
-
-# Enable/disable automatic startup
-sudo systemctl enable epimetheus    # Auto-start on boot
-sudo systemctl disable epimetheus   # Disable auto-start
-```
-
-#### Monitoring & Health Checks
-```bash
-# View real-time logs
-tail -f /var/log/epimetheus.log
-sudo journalctl -u epimetheus -f
-
-# Health check endpoints (default port 8080)
-curl http://localhost:8080/health
-curl http://localhost:8080/metrics
-
-# Check service statistics
-sudo systemctl status epimetheus --no-pager -l
-```
-
-### Configuration Files
-
-The deployment script creates and manages these configuration files:
-
-| File | Purpose | Permissions |
-|------|---------|-------------|
-| `/etc/epimetheus/environment` | Main environment configuration | `640 root:oci-user` |
-| `/etc/epimetheus/oci-config.json` | OCI API configuration template | `640 root:oci-user` |
-| `/etc/epimetheus/oci-field-map.json` | CEF field mapping configuration | `640 root:oci-user` |
-| `/etc/epimetheus/oci-event-map.json` | Event type name mapping | `640 root:oci-user` |
-| `/etc/epimetheus/oci_audit_marker.json` | Event polling state tracking | `640 oci-user:oci-user` |
-| `/var/log/epimetheus.log` | Application logs | `640 oci-user:oci-user` |
-
-### Advanced Configuration
-
-#### Compartment Filtering
-Configure which OCI compartments to monitor:
-```bash
-# Edit environment file
-sudo nano /etc/epimetheus/environment
-
-# Monitor all compartments (default)
-COMPARTMENT_MODE=all
-
-# Monitor only tenancy root
-COMPARTMENT_MODE=tenancy_only
-
-# Monitor specific compartments
-COMPARTMENT_MODE=include
-COMPARTMENT_IDS=ocid1.compartment.oc1..aaa,ocid1.compartment.oc1..bbb
-
-# Exclude specific compartments
-COMPARTMENT_MODE=exclude
-COMPARTMENT_IDS=ocid1.compartment.oc1..test
-```
-
-#### Event Deduplication
-Configure intelligent event deduplication:
-```bash
-# Enable/disable event cache
-ENABLE_EVENT_CACHE=true
-EVENT_CACHE_SIZE=10000
-EVENT_CACHE_WINDOW=3600
-```
-
-#### Polling Configuration
-Adjust polling behavior:
-```bash
-# Polling interval (seconds)
-FETCH_INTERVAL=300
-
-# Time-based polling settings
-INITIAL_LOOKBACK_HOURS=24
-POLL_OVERLAP_MINUTES=5
-MAX_EVENTS_PER_POLL=1000
-```
-
-#### Custom Field Mappings
-Edit CEF field mappings and event filtering:
-```bash
-# Customize CEF field mappings
-sudo nano /etc/epimetheus/oci-field-map.json
-
-# Add custom event type names
-sudo nano /etc/epimetheus/oci-event-map.json
-```
-
-### Troubleshooting
-
-#### Check Service Status
-```bash
-# Detailed service status
-sudo systemctl status epimetheus --no-pager -l
-
-# Recent log entries
-sudo journalctl -u epimetheus --since "10 minutes ago"
-
-# Full service logs
-sudo journalctl -u epimetheus --no-pager
-```
-
-#### Common Issues
-
-**Authentication Errors:**
-```bash
-# Verify OCI credentials
-sudo -u oci-user epimetheus --validate
-
-# Check private key permissions
-ls -la /etc/epimetheus/oci_api_key.pem
-```
-
-**Network Connectivity:**
-```bash
-# Test connections
-sudo -u oci-user epimetheus --test
-
-# Check syslog connectivity
-telnet your-siem-server.com 514
-```
-
-**Configuration Issues:**
-```bash
-# Verify configuration syntax
-sudo -u oci-user epimetheus --validate
-
-# Check environment file
-sudo cat /etc/epimetheus/environment
-```
-
-#### Log Analysis
-```bash
-# Search for errors
-sudo journalctl -u epimetheus | grep -i error
-
-# Monitor real-time events
-tail -f /var/log/epimetheus.log | grep "📊"
-
-# Check health metrics
-curl -s http://localhost:8080/health | jq '.'
-```
-
-### Updating Epimetheus
-
-To update to the latest version:
-```bash
-# Stop the service
-sudo systemctl stop epimetheus
-
-# Re-run the deployment script (preserves configuration)
-sudo ./epimetheus_deploy_script.sh
-
-# Start the service
-sudo systemctl start epimetheus
-```
-
-The deployment script preserves existing configuration files and only updates the binary and service definition.
-
-### Uninstallation
-
-To completely remove Epimetheus:
-```bash
-# Stop and disable service
-sudo systemctl stop epimetheus
-sudo systemctl disable epimetheus
-
-# Remove service files
-sudo rm /etc/systemd/system/epimetheus.service
-sudo rm /usr/local/bin/epimetheus
-sudo rm /etc/logrotate.d/epimetheus
-
-# Remove configuration (optional)
-sudo rm -rf /etc/epimetheus
-
-# Remove user and logs (optional)
-sudo userdel oci-user
-sudo rm /var/log/epimetheus.log
-
-# Reload systemd
-sudo systemctl daemon-reload
-```
 
 ## License
 
